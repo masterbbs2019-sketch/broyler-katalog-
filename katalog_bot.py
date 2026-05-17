@@ -278,6 +278,12 @@ def main():
     )
     app.add_handler(conv)
     print("Katalog bot ishga tushdi!")
+    import threading
+    import http.server
+    def run_server():
+        server = http.server.HTTPServer(('0.0.0.0', 10000), http.server.BaseHTTPRequestHandler)
+        server.serve_forever()
+    threading.Thread(target=run_server, daemon=True).start()
     app.run_polling()
 
 if __name__ == "__main__":
