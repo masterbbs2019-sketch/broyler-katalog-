@@ -230,12 +230,27 @@ async def lok_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         }
         save_data(data)
         await update.message.reply_text(
-            "✅ Lokatsiya saqlandi! Endi mijozlar manzilni bosganida xarita ko'rinadi.",
-            reply_markup=admin_keyboard()
+            "✅ Lokatsiya saqlandi!\n\nEndi manzil matnini kiriting:\nMasalan: Samarqand, Mirankul qishlog'i",
+            reply_markup=back_keyboard()
         )
-        return ADMIN_MENU
+        ctx.user_data["lok_saqlandi"] = True
+        return MANZIL_KIRIT
     await update.message.reply_text("❌ Iltimos lokatsiya yuboring!")
     return LOK_KIRIT
+
+async def manzil_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == "🔙 Orqaga":
+        await update.message.reply_text("Admin menyu:", reply_markup=admin_keyboard())
+        return ADMIN_MENU
+    data = load_data()
+    data["manzil"] = update.message.text
+    save_data(data)
+    await update.message.reply_text(
+        f"✅ Manzil yangilandi: *{data['manzil']}*",
+        parse_mode="Markdown",
+        reply_markup=admin_keyboard()
+    )
+    return ADMIN_MENU
 
 async def narx_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "🔙 Orqaga":
