@@ -15,7 +15,7 @@ ADMIN_ID = 772291674
 DATA_FILE = "katalog.json"
 
 (MENU, ADMIN_MENU, NARX_KIRIT, ELON_KIRIT, MANZIL_KIRIT, TEL_KIRIT, MALUMOT_KIRIT,
- BUY_ISM, BUY_TEL, BUY_MIQDOR, BUY_MANZIL) = range(11)
+ BUY_ISM, BUY_TEL, BUY_MIQDOR, BUY_MANZIL, LOK_KIRIT) = range(12)
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -26,6 +26,7 @@ def load_data():
         "manzil": "Kiritilmagan",
         "telefon": "Kiritilmagan",
         "malumot": "Broyder jo'jalar sotiladi",
+        "lokatsiya": None,
         "foydalanuvchilar": [],
         "buyurtmalar": []
     }
@@ -44,7 +45,7 @@ def user_keyboard():
 def admin_keyboard():
     return ReplyKeyboardMarkup([
         ["💰 Narx yangilash", "📢 E'lon yuborish"],
-        ["📍 Manzil yangilash", "📞 Tel yangilash"],
+        ["📍 Lokatsiya yuborish", "📞 Tel yangilash"],
         ["ℹ️ Ma'lumot yangilash", "👥 Foydalanuvchilar"],
         ["📋 Buyurtmalar", "🔙 Orqaga"]
     ], resize_keyboard=True)
@@ -67,7 +68,6 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def menu_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    user_id = update.effective_user.id
     data = load_data()
 
     if text == "💰 Bugungi narx":
@@ -80,6 +80,12 @@ async def menu_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             f"📍 *Bizning manzil:*\n\n{data['manzil']}",
             parse_mode="Markdown", reply_markup=user_keyboard()
         )
+        if data.get("lokatsiya"):
+            await ctx.bot.send_location(
+                chat_id=update.effective_chat.id,
+                latitude=data["lokatsiya"]["lat"],
+                longitude=data["lokatsiya"]["lon"]
+            )
     elif text == "📞 Telefon":
         await update.message.reply_text(
             f"📞 *Bog'lanish uchun:*\n\n{data['telefon']}",
@@ -155,7 +161,6 @@ async def buy_manzil(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
         reply_markup=user_keyboard()
     )
-
     try:
         await ctx.bot.send_message(
             chat_id=ADMIN_ID,
@@ -180,9 +185,13 @@ async def admin_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     elif text == "📢 E'lon yuborish":
         await update.message.reply_text("📢 E'lon matnini kiriting:", reply_markup=back_keyboard())
         return ELON_KIRIT
-    elif text == "📍 Manzil yangilash":
-        await update.message.reply_text("📍 Yangi manzilni kiriting:", reply_markup=back_keyboard())
-        return MANZIL_KIRIT
+    elif text == "📍 Lokatsiya yuborish":
+        await update.message.reply_text(
+            "📍 Telegram orqali lokatsiyangizni yuboring:\n\n"
+            "📎 Qo'shimcha → Lokatsiya → Ishxona joyi",
+            reply_markup=back_keyboard()
+        )
+        return LOK_KIRIT
     elif text == "📞 Tel yangilash":
         await update.message.reply_text("📞 Yangi telefon raqamini kiriting:", reply_markup=back_keyboard())
         return TEL_KIRIT
@@ -209,6 +218,25 @@ async def admin_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return MENU
     return ADMIN_MENU
 
+async def lok_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if update.message.text and update.message.text == "🔙 Orqaga":
+        await update.message.reply_text("Admin menyu:", reply_markup=admin_keyboard())
+        return ADMIN_MENU
+    if update.message.location:
+        data = load_data()
+        data["lokatsiya"] = {
+            "lat": update.message.location.latitude,
+            "lon": update.message.location.longitude
+        }
+        save_data(data)
+        await update.message.reply_text(
+            "✅ Lokatsiya saqlandi! Endi mijozlar manzilni bosganida xarita ko'rinadi.",
+            reply_markup=admin_keyboard()
+        )
+        return ADMIN_MENU
+    await update.message.reply_text("❌ Iltimos lokatsiya yuboring!")
+    return LOK_KIRIT
+
 async def narx_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "🔙 Orqaga":
         await update.message.reply_text("Admin menyu:", reply_markup=admin_keyboard())
@@ -233,16 +261,6 @@ async def elon_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     await update.message.reply_text(f"✅ E'lon {yuborildi} ta foydalanuvchiga yuborildi!", reply_markup=admin_keyboard())
-    return ADMIN_MENU
-
-async def manzil_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.message.text == "🔙 Orqaga":
-        await update.message.reply_text("Admin menyu:", reply_markup=admin_keyboard())
-        return ADMIN_MENU
-    data = load_data()
-    data["manzil"] = update.message.text
-    save_data(data)
-    await update.message.reply_text("✅ Manzil yangilandi!", reply_markup=admin_keyboard())
     return ADMIN_MENU
 
 async def tel_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -280,13 +298,14 @@ def main():
             ADMIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handler)],
             NARX_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, narx_kirit)],
             ELON_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, elon_kirit)],
-            MANZIL_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, manzil_kirit)],
+            MANZIL_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, narx_kirit)],
             TEL_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, tel_kirit)],
             MALUMOT_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, malumot_kirit)],
             BUY_ISM: [MessageHandler(filters.TEXT & ~filters.COMMAND, buy_ism)],
             BUY_TEL: [MessageHandler(filters.TEXT & ~filters.COMMAND, buy_tel)],
             BUY_MIQDOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, buy_miqdor)],
             BUY_MANZIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, buy_manzil)],
+            LOK_KIRIT: [MessageHandler(filters.ALL, lok_kirit)],
         },
         fallbacks=[CommandHandler("start", start), CommandHandler("admin", admin_command)],
     )
