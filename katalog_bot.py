@@ -146,11 +146,9 @@ async def buy_manzil(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     b = ctx.user_data["buyurtma"]
     b["manzil"] = update.message.text
     b["user_id"] = update.effective_user.id
-
     data = load_data()
     data["buyurtmalar"].append(b)
     save_data(data)
-
     await update.message.reply_text(
         f"✅ *Buyurtmangiz qabul qilindi!*\n\n"
         f"👤 Ism: {b['ism']}\n"
@@ -187,8 +185,7 @@ async def admin_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         return ELON_KIRIT
     elif text == "📍 Lokatsiya yuborish":
         await update.message.reply_text(
-            "📍 Telegram orqali lokatsiyangizni yuboring:\n\n"
-            "📎 Qo'shimcha → Lokatsiya → Ishxona joyi",
+            "📍 Lokatsiyangizni yuboring:\n\n📎 Qo'shimcha → Lokatsiya → Ishxona joyi",
             reply_markup=back_keyboard()
         )
         return LOK_KIRIT
@@ -233,7 +230,6 @@ async def lok_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             "✅ Lokatsiya saqlandi!\n\nEndi manzil matnini kiriting:\nMasalan: Samarqand, Mirankul qishlog'i",
             reply_markup=back_keyboard()
         )
-        ctx.user_data["lok_saqlandi"] = True
         return MANZIL_KIRIT
     await update.message.reply_text("❌ Iltimos lokatsiya yuboring!")
     return LOK_KIRIT
@@ -313,7 +309,7 @@ def main():
             ADMIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handler)],
             NARX_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, narx_kirit)],
             ELON_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, elon_kirit)],
-            MANZIL_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, narx_kirit)],
+            MANZIL_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, manzil_kirit)],
             TEL_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, tel_kirit)],
             MALUMOT_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, malumot_kirit)],
             BUY_ISM: [MessageHandler(filters.TEXT & ~filters.COMMAND, buy_ism)],
