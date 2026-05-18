@@ -14,8 +14,17 @@ TOKEN = os.environ.get("TOKEN", "8875573270:AAFGylXSdQVHSVoEXj-vCBKABYtJvXEcIZU"
 ADMIN_ID = 772291674
 DATA_FILE = "katalog.json"
 
+# Elon yuborish kerak bo'lgan guruh/kanal ID'lari
+# Guruh ID'sini olish uchun: @username_to_id_bot dan foydalaning
+# Kanal uchun: -100 bilan boshlanadi, masalan: -1001234567890
+GURUHLAR = [
+    # "-1001234567890",   # 1-guruh yoki kanal ID'sini shu yerga kiriting
+    # "-1009876543210",   # 2-guruh yoki kanal ID'sini shu yerga kiriting
+]
+
 (MENU, ADMIN_MENU, NARX_KIRIT, ELON_KIRIT, MANZIL_KIRIT, TEL_KIRIT, MALUMOT_KIRIT,
- BUY_ISM, BUY_TEL, BUY_MIQDOR, BUY_MANZIL, LOK_KIRIT) = range(12)
+ BUY_ISM, BUY_TEL, BUY_MIQDOR, BUY_MANZIL, LOK_KIRIT,
+ GURUH_MENU, GURUH_QOSH, GURUH_OCH) = range(15)
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -28,7 +37,8 @@ def load_data():
         "malumot": "Broyder jo'jalar sotiladi",
         "lokatsiya": None,
         "foydalanuvchilar": [],
-        "buyurtmalar": []
+        "buyurtmalar": [],
+        "guruhlar": []
     }
 
 def save_data(data):
@@ -47,7 +57,14 @@ def admin_keyboard():
         ["💰 Narx yangilash", "📢 E'lon yuborish"],
         ["📍 Lokatsiya yuborish", "📞 Tel yangilash"],
         ["ℹ️ Ma'lumot yangilash", "👥 Foydalanuvchilar"],
-        ["📋 Buyurtmalar", "🔙 Orqaga"]
+        ["📋 Buyurtmalar", "👥 Guruhlar boshqaruv"],
+        ["🔙 Orqaga"]
+    ], resize_keyboard=True)
+
+def guruh_keyboard():
+    return ReplyKeyboardMarkup([
+        ["➕ Guruh qo'shish", "📋 Guruhlar ro'yxati"],
+        ["🗑 Guruh o'chirish", "🔙 Orqaga"]
     ], resize_keyboard=True)
 
 def back_keyboard():
@@ -210,10 +227,164 @@ async def admin_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             for i, b in enumerate(buyurtmalar[-10:], 1):
                 msg += f"{i}. *{b['ism']}* — {b['miqdor']} ta\n   📞 {b['tel']}\n   📍 {b['manzil']}\n\n"
             await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=admin_keyboard())
+    elif text == "👥 Guruhlar boshqaruv":
+        await update.message.reply_text(
+            "👥 *Guruhlar boshqaruvi*\n\nE'lonlar yuboriladigan guruhlar va kanallarni boshqaring:",
+            parse_mode="Markdown",
+            reply_markup=guruh_keyboard()
+        )
+        return GURUH_MENU
     elif text == "🔙 Orqaga":
         await update.message.reply_text("🏠 Asosiy menyu:", reply_markup=user_keyboard())
         return MENU
     return ADMIN_MENU
+
+# ===================== GURUH BOSHQARUVI =====================
+
+async def guruh_menu_handler(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    data = load_data()
+    if "guruhlar" not in data:
+        data["guruhlar"] = []
+
+    if text == "➕ Guruh qo'shish":
+        await update.message.reply_text(
+            "➕ *Guruh yoki kanal ID'sini kiriting:*\n\n"
+            "📌 ID olish usuli:\n"
+            "1️⃣ Botni guruhga qo'shing\n"
+            "2️⃣ @username_to_id_bot ga guruh nomini yuboring\n"
+            "3️⃣ Yoki @RawDataBot ni guruhga qo'shing\n\n"
+            "Misol: `-1001234567890`",
+            parse_mode="Markdown",
+            reply_markup=back_keyboard()
+        )
+        return GURUH_QOSH
+    elif text == "📋 Guruhlar ro'yxati":
+        # Kodda yozilgan + bazadagi guruhlarni birlashtir
+        barcha = list(set([str(g) for g in GURUHLAR] + data["guruhlar"]))
+        if not barcha:
+            await update.message.reply_text(
+                "📭 Hali hech qanday guruh qo'shilmagan.\n\n"
+                "➕ Guruh qo'shish tugmasini bosing.",
+                reply_markup=guruh_keyboard()
+            )
+        else:
+            msg = f"📋 *Guruhlar ro'yxati ({len(barcha)} ta):*\n\n"
+            for i, g in enumerate(barcha, 1):
+                msg += f"{i}. `{g}`\n"
+            msg += "\n💡 E'lon yuborganda barchaga ketadi."
+            await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=guruh_keyboard())
+    elif text == "🗑 Guruh o'chirish":
+        barcha = data["guruhlar"]
+        if not barcha:
+            await update.message.reply_text("📭 O'chiriladigan guruh yo'q.", reply_markup=guruh_keyboard())
+        else:
+            msg = "🗑 *O'chirish uchun guruh ID'sini kiriting:*\n\n"
+            for i, g in enumerate(barcha, 1):
+                msg += f"{i}. `{g}`\n"
+            await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=back_keyboard())
+            return GURUH_OCH
+    elif text == "🔙 Orqaga":
+        await update.message.reply_text("Admin menyu:", reply_markup=admin_keyboard())
+        return ADMIN_MENU
+    return GURUH_MENU
+
+async def guruh_qosh(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == "🔙 Orqaga":
+        await update.message.reply_text("👥 Guruhlar:", reply_markup=guruh_keyboard())
+        return GURUH_MENU
+    guruh_id = update.message.text.strip()
+    data = load_data()
+    if "guruhlar" not in data:
+        data["guruhlar"] = []
+
+    if guruh_id in data["guruhlar"] or guruh_id in [str(g) for g in GURUHLAR]:
+        await update.message.reply_text("⚠️ Bu guruh allaqachon mavjud!", reply_markup=guruh_keyboard())
+        return GURUH_MENU
+
+    # Guruh mavjudligini tekshirish
+    try:
+        chat = await ctx.bot.get_chat(guruh_id)
+        data["guruhlar"].append(guruh_id)
+        save_data(data)
+        await update.message.reply_text(
+            f"✅ *Guruh muvaffaqiyatli qo'shildi!*\n\n"
+            f"📛 Nomi: {chat.title}\n"
+            f"🆔 ID: `{guruh_id}`\n\n"
+            f"Endi e'lonlar bu guruhga ham yuboriladi.",
+            parse_mode="Markdown",
+            reply_markup=guruh_keyboard()
+        )
+    except Exception as e:
+        await update.message.reply_text(
+            f"❌ *Xato!* Guruh topilmadi.\n\n"
+            f"Tekshiring:\n"
+            f"• Bot guruhga qo'shilganmi?\n"
+            f"• ID to'g'rimi? (manfiy son bo'lishi kerak)\n\n"
+            f"Xato: `{str(e)[:100]}`",
+            parse_mode="Markdown",
+            reply_markup=guruh_keyboard()
+        )
+    return GURUH_MENU
+
+async def guruh_och(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == "🔙 Orqaga":
+        await update.message.reply_text("👥 Guruhlar:", reply_markup=guruh_keyboard())
+        return GURUH_MENU
+    guruh_id = update.message.text.strip()
+    data = load_data()
+    if guruh_id in data.get("guruhlar", []):
+        data["guruhlar"].remove(guruh_id)
+        save_data(data)
+        await update.message.reply_text(f"✅ Guruh o'chirildi: `{guruh_id}`", parse_mode="Markdown", reply_markup=guruh_keyboard())
+    else:
+        await update.message.reply_text("❌ Bunday guruh topilmadi.", reply_markup=guruh_keyboard())
+    return GURUH_MENU
+
+# ===================== E'LON YUBORISH =====================
+
+async def elon_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == "🔙 Orqaga":
+        await update.message.reply_text("Admin menyu:", reply_markup=admin_keyboard())
+        return ADMIN_MENU
+    data = load_data()
+    elon = update.message.text
+
+    # Foydalanuvchilarga yuborish
+    user_yuborildi = 0
+    for user_id in data["foydalanuvchilar"]:
+        try:
+            await ctx.bot.send_message(chat_id=user_id, text=f"📢 *E'lon:*\n\n{elon}", parse_mode="Markdown")
+            user_yuborildi += 1
+        except:
+            pass
+
+    # Guruhlarga yuborish (kodda yozilgan + bazadagi)
+    if "guruhlar" not in data:
+        data["guruhlar"] = []
+    barcha_guruhlar = list(set([str(g) for g in GURUHLAR] + data["guruhlar"]))
+
+    guruh_yuborildi = 0
+    guruh_xato = 0
+    for guruh_id in barcha_guruhlar:
+        try:
+            await ctx.bot.send_message(chat_id=guruh_id, text=f"📢 *E'lon:*\n\n{elon}", parse_mode="Markdown")
+            guruh_yuborildi += 1
+        except Exception as e:
+            guruh_xato += 1
+
+    xabar = (
+        f"✅ *E'lon muvaffaqiyatli yuborildi!*\n\n"
+        f"👥 Foydalanuvchilar: *{user_yuborildi} ta*\n"
+        f"👥 Guruhlar: *{guruh_yuborildi} ta*"
+    )
+    if guruh_xato > 0:
+        xabar += f"\n⚠️ Yuborilmadi (xato): *{guruh_xato} ta guruh*"
+
+    await update.message.reply_text(xabar, parse_mode="Markdown", reply_markup=admin_keyboard())
+    return ADMIN_MENU
+
+# ===================== QOLGAN HANDLERLAR =====================
 
 async def lok_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if update.message.text and update.message.text == "🔙 Orqaga":
@@ -258,22 +429,6 @@ async def narx_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Narx yangilandi: *{data['narx']}*", parse_mode="Markdown", reply_markup=admin_keyboard())
     return ADMIN_MENU
 
-async def elon_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.message.text == "🔙 Orqaga":
-        await update.message.reply_text("Admin menyu:", reply_markup=admin_keyboard())
-        return ADMIN_MENU
-    data = load_data()
-    elon = update.message.text
-    yuborildi = 0
-    for user_id in data["foydalanuvchilar"]:
-        try:
-            await ctx.bot.send_message(chat_id=user_id, text=f"📢 *E'lon:*\n\n{elon}", parse_mode="Markdown")
-            yuborildi += 1
-        except:
-            pass
-    await update.message.reply_text(f"✅ E'lon {yuborildi} ta foydalanuvchiga yuborildi!", reply_markup=admin_keyboard())
-    return ADMIN_MENU
-
 async def tel_kirit(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if update.message.text == "🔙 Orqaga":
         await update.message.reply_text("Admin menyu:", reply_markup=admin_keyboard())
@@ -309,7 +464,7 @@ def main():
             ADMIN_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_handler)],
             NARX_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, narx_kirit)],
             ELON_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, elon_kirit)],
-           MANZIL_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, manzil_kirit)],
+            MANZIL_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, manzil_kirit)],
             TEL_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, tel_kirit)],
             MALUMOT_KIRIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, malumot_kirit)],
             BUY_ISM: [MessageHandler(filters.TEXT & ~filters.COMMAND, buy_ism)],
@@ -317,6 +472,9 @@ def main():
             BUY_MIQDOR: [MessageHandler(filters.TEXT & ~filters.COMMAND, buy_miqdor)],
             BUY_MANZIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, buy_manzil)],
             LOK_KIRIT: [MessageHandler(filters.ALL, lok_kirit)],
+            GURUH_MENU: [MessageHandler(filters.TEXT & ~filters.COMMAND, guruh_menu_handler)],
+            GURUH_QOSH: [MessageHandler(filters.TEXT & ~filters.COMMAND, guruh_qosh)],
+            GURUH_OCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, guruh_och)],
         },
         fallbacks=[CommandHandler("start", start), CommandHandler("admin", admin_command)],
     )
@@ -329,4 +487,4 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    ma
